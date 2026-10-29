@@ -14,5 +14,8 @@ public class BasketConfiguration : IEntityTypeConfiguration<Basket>
         builder.Property(b => b.BuyerId)
             .IsRequired()
             .HasMaxLength(256);
+
+        builder.Property(b => b.PromoCode)
+            .HasMaxLength(50);
     }
 }

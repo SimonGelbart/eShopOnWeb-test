@@ -16,6 +16,13 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .IsRequired()
             .HasMaxLength(256);
 
+        builder.Property(o => o.PromoCode)
+            .HasMaxLength(50);
+
+        builder.Property(o => o.DiscountAmount)
+            .IsRequired()
+            .HasColumnType("decimal(18,2)");
+
         builder.OwnsOne(o => o.ShipToAddress, a =>
         {
             a.WithOwner();

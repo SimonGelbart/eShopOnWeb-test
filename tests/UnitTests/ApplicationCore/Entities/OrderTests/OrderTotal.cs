@@ -36,4 +36,23 @@ public class OrderTotal
 
         Assert.Equal(builder.TestUnitPrice * builder.TestUnits, order.Total());
     }
+
+    [Fact]
+    public void AppliesSnapshotPromotionDiscountToTotal()
+    {
+        var builder = new OrderBuilder();
+        var items = new List<OrderItem>
+        {
+            new(builder.TestCatalogItemOrdered, 100m, 1)
+        };
+
+        var order = new OrderBuilder().WithItems(items);
+        order = new Order(builder.TestBuyerId, new AddressBuilder().WithDefaultValues(),
+            items, " promo10 ", 10m);
+
+        Assert.Equal("PROMO10", order.PromoCode);
+        Assert.Equal(100m, order.Subtotal());
+        Assert.Equal(10m, order.DiscountAmount);
+        Assert.Equal(90m, order.Total());
+    }
 }

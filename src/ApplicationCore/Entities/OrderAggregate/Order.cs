@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Ardalis.GuardClauses;
 using Microsoft.eShopWeb.ApplicationCore.Interfaces;
 
@@ -10,18 +11,23 @@ public class Order : BaseEntity, IAggregateRoot
     #pragma warning disable CS8618 // Required by Entity Framework
     private Order() {}
 
-    public Order(string buyerId, Address shipToAddress, List<OrderItem> items)
+    public Order(string buyerId, Address shipToAddress, List<OrderItem> items,
+        string? promoCode = null, decimal discountAmount = 0m)
     {
         Guard.Against.NullOrEmpty(buyerId, nameof(buyerId));
 
         BuyerId = buyerId;
         ShipToAddress = shipToAddress;
-        _orderItems = items;
+        _orderItems = new List<OrderItem>(items);
+        PromoCode = promoCode?.Trim().ToUpperInvariant();
+        DiscountAmount = Math.Min(RoundMoney(Math.Max(discountAmount, 0m)), Subtotal());
     }
 
     public string BuyerId { get; private set; }
     public DateTimeOffset OrderDate { get; private set; } = DateTimeOffset.Now;
     public Address ShipToAddress { get; private set; }
+    public string? PromoCode { get; private set; }
+    public decimal DiscountAmount { get; private set; }
 
     // DDD Patterns comment
     // Using a private collection field, better for DDD Aggregate's encapsulation
@@ -37,11 +43,16 @@ public class Order : BaseEntity, IAggregateRoot
 
     public decimal Total()
     {
-        var total = 0m;
-        foreach (var item in _orderItems)
-        {
-            total += item.UnitPrice * item.Units;
-        }
-        return total;
+        return RoundMoney(Subtotal() - DiscountAmount);
+    }
+
+    public decimal Subtotal()
+    {
+        return RoundMoney(_orderItems.Sum(item => item.UnitPrice * item.Units));
+    }
+
+    private static decimal RoundMoney(decimal amount)
+    {
+        return Math.Round(amount, 2, MidpointRounding.AwayFromZero);
     }
 }

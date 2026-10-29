@@ -63,6 +63,28 @@ public class BasketService : IBasketService
         return basket;
     }
 
+    public async Task<Basket> ApplyPromoCode(int basketId, string promoCode)
+    {
+        var basketSpec = new BasketWithItemsSpecification(basketId);
+        var basket = await _basketRepository.FirstOrDefaultAsync(basketSpec);
+        Guard.Against.Null(basket, nameof(basket));
+
+        basket.ApplyPromoCode(promoCode);
+        await _basketRepository.UpdateAsync(basket);
+        return basket;
+    }
+
+    public async Task<Basket> RemovePromoCode(int basketId)
+    {
+        var basketSpec = new BasketWithItemsSpecification(basketId);
+        var basket = await _basketRepository.FirstOrDefaultAsync(basketSpec);
+        Guard.Against.Null(basket, nameof(basket));
+
+        basket.RemovePromoCode();
+        await _basketRepository.UpdateAsync(basket);
+        return basket;
+    }
+
     public async Task TransferBasketAsync(string anonymousId, string userName)
     {
         var anonymousBasketSpec = new BasketWithItemsSpecification(anonymousId);

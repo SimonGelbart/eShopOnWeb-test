@@ -50,7 +50,8 @@ public class OrderService : IOrderService
             return orderItem;
         }).ToList();
 
-        var order = new Order(basket.BuyerId, shippingAddress, items);
+        var order = new Order(basket.BuyerId, shippingAddress, items,
+            basket.PromoCode, basket.DiscountAmount());
 
         await _orderRepository.AddAsync(order);
         OrderCreatedEvent orderCreatedEvent = new OrderCreatedEvent(order);
