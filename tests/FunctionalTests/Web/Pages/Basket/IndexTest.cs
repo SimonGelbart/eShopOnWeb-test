@@ -95,4 +95,90 @@ public class IndexTest : IClassFixture<TestApplication>
         Assert.Contains("/basket/update", updateResponse!.RequestMessage!.RequestUri!.ToString()!);
         Assert.Contains("Basket is empty", stringUpdateResponse);
     }
+
+    [Fact]
+    public async Task AppliesAndRemovesPromotionCode()
+    {
+        var response = await Client.GetAsync("/", TestContext.Current.CancellationToken);
+        response.EnsureSuccessStatusCode();
+        var homeResponse = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        var addContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
+        {
+            new("id", "2"),
+            new("__RequestVerificationToken", WebPageHelpers.GetRequestVerificationToken(homeResponse))
+        });
+        var addResponse = await Client.PostAsync("/basket/index", addContent, TestContext.Current.CancellationToken);
+        var basketResponse = await addResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        var updateContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
+        {
+            new("Items[0].Id", WebPageHelpers.GetId(basketResponse)),
+            new("Items[0].Quantity", "6"),
+            new(WebPageHelpers.TokenTag, WebPageHelpers.GetRequestVerificationToken(basketResponse))
+        });
+        var updateResponse = await Client.PostAsync("/basket/update", updateContent, TestContext.Current.CancellationToken);
+        var updatedBasket = await updateResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        var applyContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
+        {
+            new("PromoCodeInput", " promo10 "),
+            new(WebPageHelpers.TokenTag, WebPageHelpers.GetRequestVerificationToken(updatedBasket))
+        });
+        var applyResponse = await Client.PostAsync("/basket/applypromocode", applyContent, TestContext.Current.CancellationToken);
+        var appliedBasket = await applyResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("PROMO10", appliedBasket);
+        Assert.Contains("51.00", appliedBasket);
+        Assert.Contains("5.10", appliedBasket);
+        Assert.Contains("45.90", appliedBasket);
+
+        var invalidContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
+        {
+            new("PromoCodeInput", "UNKNOWN"),
+            new(WebPageHelpers.TokenTag, WebPageHelpers.GetRequestVerificationToken(appliedBasket))
+        });
+        var invalidResponse = await Client.PostAsync("/basket/applypromocode", invalidContent, TestContext.Current.CancellationToken);
+        var invalidBasket = await invalidResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("not recognized", invalidBasket);
+        Assert.Contains("45.90", invalidBasket);
+
+        var removeContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
+        {
+            new(WebPageHelpers.TokenTag, WebPageHelpers.GetRequestVerificationToken(invalidBasket))
+        });
+        var removeResponse = await Client.PostAsync("/basket/removepromocode", removeContent, TestContext.Current.CancellationToken);
+        var removedBasket = await removeResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("51.00", removedBasket);
+        Assert.DoesNotContain("Applied promotion", removedBasket);
+    }
+
+    [Fact]
+    public async Task KeepsPromotionCodeAndDisplaysMinimumMessageBelowThreshold()
+    {
+        var response = await Client.GetAsync("/", TestContext.Current.CancellationToken);
+        var homeResponse = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        var addContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
+        {
+            new("id", "2"),
+            new(WebPageHelpers.TokenTag, WebPageHelpers.GetRequestVerificationToken(homeResponse))
+        });
+        var addResponse = await Client.PostAsync("/basket/index", addContent, TestContext.Current.CancellationToken);
+        var basketResponse = await addResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        var applyContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
+        {
+            new("PromoCodeInput", "PROMO10"),
+            new(WebPageHelpers.TokenTag, WebPageHelpers.GetRequestVerificationToken(basketResponse))
+        });
+        var applyResponse = await Client.PostAsync("/basket/applypromocode", applyContent, TestContext.Current.CancellationToken);
+        var appliedBasket = await applyResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("PROMO10", appliedBasket);
+        Assert.Contains("minimum purchase of €50.00", appliedBasket);
+        Assert.Contains("0.00", appliedBasket);
+    }
 }

@@ -46,8 +46,7 @@ public class OrderTotal
             new(builder.TestCatalogItemOrdered, 100m, 1)
         };
 
-        var order = new OrderBuilder().WithItems(items);
-        order = new Order(builder.TestBuyerId, new AddressBuilder().WithDefaultValues(),
+        var order = new Order(builder.TestBuyerId, new AddressBuilder().WithDefaultValues(),
             items, " promo10 ", 10m);
 
         Assert.Equal("PROMO10", order.PromoCode);

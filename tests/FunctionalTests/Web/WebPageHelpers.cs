@@ -14,7 +14,7 @@ public static class WebPageHelpers
 
     public static string GetId(string input)
     {
-        string regexpression = @"name=""Items\[0\].Id"" value=""(\d)""";
+        string regexpression = @"name=""Items\[0\].Id"" value=""(\d+)""";
         return RegexSearch(regexpression, input);
     }
 
