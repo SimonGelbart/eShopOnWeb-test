@@ -39,6 +39,7 @@ public class CreateOrder
 
         await orderRepository.Received().AddAsync(
             Arg.Is<Order>(order =>
+                order != null &&
                 order.PromoCode == PromotionCodes.Promo10 &&
                 order.DiscountAmount == 10m &&
                 order.Subtotal() == 100m &&
