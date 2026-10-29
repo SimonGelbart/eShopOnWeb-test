@@ -29,6 +29,9 @@ public class GetOrderDetailsHandler : IRequestHandler<GetOrderDetails, OrderDeta
         return new OrderDetailViewModel
         {
             OrderDate = order.OrderDate,
+            PromoCode = order.PromoCode,
+            Subtotal = order.Subtotal(),
+            DiscountAmount = order.DiscountAmount,
             OrderItems = order.OrderItems.Select(oi => new OrderItemViewModel
             {
                 PictureUrl = oi.ItemOrdered.PictureUri,

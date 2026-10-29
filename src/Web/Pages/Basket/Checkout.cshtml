@@ -33,13 +33,13 @@
                                 <img class="esh-basket-image" src="@item.PictureUrl" />
                             </section>
                             <section class="esh-basket-item esh-basket-item--middle col-xs-3">@item.ProductName</section>
-                            <section class="esh-basket-item esh-basket-item--middle col-xs-2">$ @item.UnitPrice.ToString("N2")</section>
+                            <section class="esh-basket-item esh-basket-item--middle col-xs-2">€ @item.UnitPrice.ToString("N2")</section>
                             <section class="esh-basket-item esh-basket-item--middle col-xs-2">
                                 <input type="hidden" name="@("Items[" + i + "].Id")" value="@item.Id" />
                                 <input type="hidden" name="@("Items[" + i + "].Quantity")" value="@item.Quantity" />
                                 @item.Quantity
                             </section>
-                            <section class="esh-basket-item esh-basket-item--middle esh-basket-item--mark col-xs-2">$ @Math.Round(item.Quantity * item.UnitPrice, 2).ToString("N2")</section>
+                            <section class="esh-basket-item esh-basket-item--middle esh-basket-item--mark col-xs-2">€ @Math.Round(item.Quantity * item.UnitPrice, 2).ToString("N2")</section>
                         </div>
                         <div class="row">
 
@@ -50,12 +50,22 @@
                 <div class="container">
                     <article class="esh-basket-titles esh-basket-titles--clean row">
                         <section class="esh-basket-title col-xs-10"></section>
-                        <section class="esh-basket-title col-xs-2">Total</section>
+                        <section class="esh-basket-title col-xs-2">Subtotal</section>
                     </article>
 
                     <article class="esh-basket-items row">
                         <section class="esh-basket-item col-xs-10"></section>
-                        <section class="esh-basket-item esh-basket-item--mark col-xs-2">$ @Model.BasketModel.Total().ToString("N2")</section>
+                        <section class="esh-basket-item esh-basket-item--mark col-xs-2">€ @Model.BasketModel.Subtotal.ToString("N2")</section>
+                    </article>
+
+                    <article class="esh-basket-items row">
+                        <section class="esh-basket-item col-xs-10">Discount @(Model.BasketModel.PromoCode == null ? "" : Model.BasketModel.PromoCode)</section>
+                        <section class="esh-basket-item esh-basket-item--mark col-xs-2">- € @Model.BasketModel.DiscountAmount.ToString("N2")</section>
+                    </article>
+
+                    <article class="esh-basket-items row">
+                        <section class="esh-basket-item col-xs-10">Total to pay</section>
+                        <section class="esh-basket-item esh-basket-item--mark col-xs-2">€ @Model.BasketModel.Total.ToString("N2")</section>
                     </article>
 
                     <article class="esh-basket-items row">

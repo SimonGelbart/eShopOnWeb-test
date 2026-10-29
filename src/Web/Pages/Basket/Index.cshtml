@@ -11,6 +11,28 @@
 
 <div class="container">
 
+    <section class="esh-basket-promotion">
+        <form method="post" asp-page-handler="ApplyPromoCode">
+            <label asp-for="PromoCodeInput">Promotion code</label>
+            <input asp-for="PromoCodeInput" class="form-control" />
+            <span asp-validation-for="PromoCodeInput" class="text-danger"></span>
+            <button class="btn esh-basket-checkout" type="submit">[ Apply ]</button>
+        </form>
+
+        @if (Model.BasketModel.PromoCode != null)
+        {
+            <p>Applied promotion: <strong>@Model.BasketModel.PromoCode</strong></p>
+            <form method="post" asp-page-handler="RemovePromoCode">
+                <button class="btn esh-basket-checkout" type="submit">[ Remove ]</button>
+            </form>
+
+            @if (Model.BasketModel.Subtotal < 50m)
+            {
+                <p class="text-info">The minimum purchase of €50.00 has not been reached yet.</p>
+            }
+        }
+    </section>
+
     @if (Model.BasketModel.Items.Any())
     {
         <form method="post">
@@ -33,12 +55,12 @@
                                 <img class="esh-basket-image" src="@item.PictureUrl" />
                             </section>
                             <section class="esh-basket-item esh-basket-item--middle col-xs-3">@item.ProductName</section>
-                            <section class="esh-basket-item esh-basket-item--middle col-xs-2">$ @item.UnitPrice.ToString("N2")</section>
+                            <section class="esh-basket-item esh-basket-item--middle col-xs-2">€ @item.UnitPrice.ToString("N2")</section>
                             <section class="esh-basket-item esh-basket-item--middle col-xs-2">
                                 <input type="hidden" name="@("Items[" + i + "].Id")" value="@item.Id" />
                                 <input type="number" class="esh-basket-input" min="0" name="@("Items[" + i + "].Quantity")" value="@item.Quantity" />
                             </section>
-                            <section class="esh-basket-item esh-basket-item--middle esh-basket-item--mark col-xs-2">$ @Math.Round(item.Quantity * item.UnitPrice, 2).ToString("N2")</section>
+                            <section class="esh-basket-item esh-basket-item--middle esh-basket-item--mark col-xs-2">€ @Math.Round(item.Quantity * item.UnitPrice, 2).ToString("N2")</section>
                         </div>
                         <div class="row">
 
@@ -49,12 +71,22 @@
                 <div class="container">
                     <article class="esh-basket-titles esh-basket-titles--clean row">
                         <section class="esh-basket-title col-xs-10"></section>
-                        <section class="esh-basket-title col-xs-2">Total</section>
+                        <section class="esh-basket-title col-xs-2">Subtotal</section>
                     </article>
 
                     <article class="esh-basket-items row">
                         <section class="esh-basket-item col-xs-10"></section>
-                        <section class="esh-basket-item esh-basket-item--mark col-xs-2">$ @Model.BasketModel.Total().ToString("N2")</section>
+                        <section class="esh-basket-item esh-basket-item--mark col-xs-2">€ @Model.BasketModel.Subtotal.ToString("N2")</section>
+                    </article>
+
+                    <article class="esh-basket-items row">
+                        <section class="esh-basket-item col-xs-10">Discount @(Model.BasketModel.PromoCode == null ? "" : Model.BasketModel.PromoCode)</section>
+                        <section class="esh-basket-item esh-basket-item--mark col-xs-2">- € @Model.BasketModel.DiscountAmount.ToString("N2")</section>
+                    </article>
+
+                    <article class="esh-basket-items row">
+                        <section class="esh-basket-item col-xs-10">Total to pay</section>
+                        <section class="esh-basket-item esh-basket-item--mark col-xs-2">€ @Model.BasketModel.Total.ToString("N2")</section>
                     </article>
 
                     <article class="esh-basket-items row">

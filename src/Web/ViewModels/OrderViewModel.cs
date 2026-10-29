@@ -8,6 +8,9 @@ public class OrderViewModel
 
     public int OrderNumber { get; set; }
     public DateTimeOffset OrderDate { get; set; }
+    public string? PromoCode { get; set; }
+    public decimal Subtotal { get; set; }
+    public decimal DiscountAmount { get; set; }
     public decimal Total { get; set; }
     public string Status => DEFAULT_STATUS;
     public Address? ShippingAddress { get; set; }

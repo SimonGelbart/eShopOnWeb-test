@@ -25,6 +25,9 @@ public class GetMyOrdersHandler : IRequestHandler<GetMyOrders, IEnumerable<Order
         {
             OrderDate = o.OrderDate,
             OrderNumber = o.Id,
+            PromoCode = o.PromoCode,
+            Subtotal = o.Subtotal(),
+            DiscountAmount = o.DiscountAmount,
             ShippingAddress = o.ShipToAddress,
             Total = o.Total()
         });

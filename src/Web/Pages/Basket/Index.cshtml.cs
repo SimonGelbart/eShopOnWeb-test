@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.eShopWeb.ApplicationCore.Entities;
+using Microsoft.eShopWeb.ApplicationCore.Exceptions;
 using Microsoft.eShopWeb.ApplicationCore.Interfaces;
 using Microsoft.eShopWeb.Web.Interfaces;
 using Microsoft.eShopWeb.Web.ViewModels;
@@ -24,6 +25,9 @@ public class IndexModel : PageModel
     }
 
     public BasketViewModel BasketModel { get; set; } = new BasketViewModel();
+
+    [BindProperty]
+    public string? PromoCodeInput { get; set; }
 
     public async Task OnGet()
     {
@@ -63,6 +67,32 @@ public class IndexModel : PageModel
         var updateModel = items.ToDictionary(b => b.Id.ToString(), b => b.Quantity);
         var basket = await _basketService.SetQuantities(basketView.Id, updateModel);
         BasketModel = await _basketViewModelService.Map(basket);
+    }
+
+    public async Task<IActionResult> OnPostApplyPromoCode()
+    {
+        BasketModel = await _basketViewModelService.GetOrCreateBasketForUser(GetOrSetBasketCookieAndUserName());
+
+        try
+        {
+            var basket = await _basketService.ApplyPromoCode(BasketModel.Id, PromoCodeInput ?? string.Empty);
+            BasketModel = await _basketViewModelService.Map(basket);
+        }
+        catch (InvalidPromoCodeException exception)
+        {
+            ModelState.AddModelError(nameof(PromoCodeInput), exception.Message);
+        }
+
+        return Page();
+    }
+
+    public async Task<IActionResult> OnPostRemovePromoCode()
+    {
+        BasketModel = await _basketViewModelService.GetOrCreateBasketForUser(GetOrSetBasketCookieAndUserName());
+        var basket = await _basketService.RemovePromoCode(BasketModel.Id);
+        BasketModel = await _basketViewModelService.Map(basket);
+
+        return Page();
     }
 
     private string GetOrSetBasketCookieAndUserName()
