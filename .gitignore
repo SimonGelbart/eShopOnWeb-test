@@ -260,3 +260,7 @@ pub/
 .devcontainer
 
 .azure
+
+# Mutation testing reports and temporary build files
+**/StrykerOutput/
+

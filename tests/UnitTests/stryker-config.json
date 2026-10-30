@@ -1,0 +1,14 @@
+{
+  "stryker-config": {
+    "project": "ApplicationCore.csproj",
+    "test-runner": "mtp",
+    "target-framework": "net10.0",
+    "mutate": [
+      "**/Entities/BasketAggregate/Basket.cs"
+    ],
+    "mutation-level": "Standard",
+    "coverage-analysis": "perTest",
+    "break-on-initial-test-failure": true,
+    "reporters": ["progress", "html", "json"]
+  }
+}

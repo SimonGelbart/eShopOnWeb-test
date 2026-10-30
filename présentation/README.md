@@ -16,10 +16,12 @@ Le sample est la fonctionnalité de code promotionnel de la branche [`feat/test_
 
 - Contexte de l'expérience fourni par Simon : un agent a ajouté une fonctionnalité et ses tests, puis les mutants ont été examinés.
 - Constats vérifiés dans le dépôt : le code de promotion, ses tests unitaires, un test de transfert vers la commande et un test de persistance sont présents.
-- Éléments absents des sources consultées : configuration Stryker et rapport de mutation versionnés, exécution GitHub Actions sur cette branche et PR associée. Le rapport de l'expérience peut avoir été produit localement.
+- Éléments absents au commit de référence : configuration Stryker et rapport de mutation versionnés, exécution GitHub Actions sur cette branche et PR associée. Le rapport de l'expérience peut avoir été produit localement.
 - Ce dossier ne présente aucun score ni mutant survivant comme un résultat mesuré. Les résultats attendus du scénario sont des déductions du code, à confirmer par une exécution.
 
 Les propositions de workflow et les prompts sont des recommandations pour la présentation. La documentation officielle de Stryker décrit les mécanismes de l'outil, sans démontrer à elle seule leur efficacité dans un workflow agentique.
+
+La branche contient désormais un manifeste Stryker 5.0.0 et des configurations MTP pour les tests unitaires : voir [le guide d'exécution](../tests/UnitTests/README.md). Elles remplacent les premières commandes qui laissaient Stryker utiliser VSTest. Leur exécution reste à valider sur une machine .NET.
 
 ## Le fil narratif
 
@@ -87,11 +89,13 @@ Ces comportements décrivent le code actuel. La présentation doit les confronte
 Scénario détaillé dans [DEMO.md](DEMO.md).
 
 1. Présenter le mutant `<` vers `<=` et faire prédire son effet à 50 €.
-2. Exécuter, à des fins pédagogiques, le seul test existant portant sur 50,05 €. Il ne distingue pas ces deux opérateurs. Le mutant de borne devrait survivre dans ce périmètre réduit.
-3. Relancer avec toute la suite unitaire. Le test existant qui atteint exactement 50 € devrait tuer ce même mutant.
+2. Comparer sur une table le cas à 50,05 €, qui ne distingue pas les opérateurs, et le cas à 50 € exactement.
+3. Exécuter la campagne panier avec toute la suite unitaire, via le runner MTP. Le test existant qui atteint exactement 50 € devrait tuer ce mutant.
 4. Montrer le test responsable et son assertion sur les 5 € de remise.
 
-**Le filtrage de la première exécution est volontaire et annoncé. Il ne représente pas le résultat de la suite complète de l'expérience initiale.** Le test de borne existe déjà dans la branche. La démonstration montre sa valeur sans prétendre découvrir une lacune historique.
+**Le runner xUnit v3 sous MTP ne permet pas d'utiliser le filtre générique `test-case-filter` de Stryker.** La comparaison avec un test limité à 50,05 € reste une explication du pouvoir discriminant des données, sans rapport de mutation filtré. Le test de borne existe déjà dans la branche. La démonstration montre sa valeur sans prétendre découvrir une lacune historique.
+
+Si tous les mutants survivent, lancer le mode diagnostic et vérifier l'exécution réelle des tests avant d'interpréter le score. Les difficultés connues de Stryker avec xUnit v3 via VSTest rendent cette vérification nécessaire.
 
 Si le rapport original est disponible, ajouter ensuite un véritable survivant : emplacement, altération, règle concernée, décision et résultat après correction. Choisir un seul cas lisible.
 
@@ -168,3 +172,5 @@ Proposition de règle d'équipe : toute mutation survivante pertinente sur une r
 - [Mutations disponibles en .NET](https://stryker-mutator.io/docs/stryker-net/mutations/)
 - [États des mutants et métriques](https://stryker-mutator.io/docs/mutation-testing-elements/mutant-states-and-metrics/)
 - [Mutants équivalents](https://stryker-mutator.io/docs/mutation-testing-elements/equivalent-mutants/)
+- [MTP avec xUnit v3](https://xunit.net/docs/getting-started/v3/microsoft-testing-platform)
+- [Difficultés de Stryker avec xUnit v3 via VSTest, issue #3117](https://github.com/stryker-mutator/stryker-net/issues/3117)

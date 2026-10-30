@@ -74,10 +74,12 @@ Ce tableau illustre le format attendu. Les statuts ci-dessous sont des prédicti
 | Mutation | `Basket.DiscountAmount()` : `<` devient `<=` devant `MinimumSubtotal` |
 | Règle à confirmer dans les critères métier | La remise commence à 50 € inclus |
 | Exemple discriminant | Panier à 50 €, code PROMO10, remise attendue de 5 € |
-| Exécution filtrée à 50,05 € | Survie attendue, le test ne distingue pas la borne |
+| Lecture du cas à 50,05 € | Ce jeu de données ne distingue pas les opérateurs, sans prétendre à une exécution filtrée |
 | Suite unitaire complète | Détection attendue par le test existant de changement de quantité |
 | Action | Confirmer le rapport et citer le test, sans ajouter un doublon inutile |
 | Question métier distincte | Le minimum de 50 € s'évalue-t-il avant ou après arrondi du sous-total ? |
+
+Les [configurations versionnées](../tests/UnitTests/README.md) utilisent MTP pour xUnit v3. Ne pas leur ajouter `test-case-filter`, qui repose sur un filtre générique absent de ce runner. Si aucune mutation n'est détectée, traiter l'exécution et l'activation des mutants comme des pistes de diagnostic avant de conclure à une lacune des tests.
 
 ## Conditions de sortie proposées
 

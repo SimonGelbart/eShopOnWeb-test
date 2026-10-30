@@ -1,0 +1,17 @@
+{
+  "stryker-config": {
+    "project": "ApplicationCore.csproj",
+    "test-runner": "mtp",
+    "target-framework": "net10.0",
+    "mutate": [
+      "**/Entities/BasketAggregate/Basket.cs",
+      "**/Entities/BasketAggregate/PromotionCodes.cs",
+      "**/Entities/OrderAggregate/Order.cs",
+      "**/Services/OrderService.cs"
+    ],
+    "mutation-level": "Advanced",
+    "coverage-analysis": "perTest",
+    "break-on-initial-test-failure": true,
+    "reporters": ["progress", "html", "json"]
+  }
+}

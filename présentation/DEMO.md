@@ -4,11 +4,28 @@
 
 En six minutes, montrer comment un mutant relie une règle métier à une vérification précise, puis comment donner ce résultat à un agent et à un relecteur de PR.
 
-**Scénario préparatoire, non exécuté lors de la rédaction.** L'environnement de rédaction ne dispose pas du CLI `dotnet`. Aucun rapport ni score n'a été produit. Les commandes et les résultats attendus doivent être validés sur une machine .NET avant la présentation.
+**Scénario préparatoire, non exécuté lors de la rédaction.** L'environnement de rédaction ne dispose pas du CLI `dotnet`. Aucun rapport ni score n'a été produit ici. Les commandes et les résultats attendus doivent être validés sur une machine .NET avant la présentation.
 
-Base du scénario : commit `b1595c04af3fd600d5d59ae9253c2ffa900d2f24` de `feat/test_v1`. Les fichiers de ce dossier n'altèrent pas le code applicatif ni les tests.
+La lecture du comportement métier repose sur le commit `b1595c04af3fd600d5d59ae9253c2ffa900d2f24`. Pour exécuter la démonstration, utiliser la branche `feat/test_v1` à jour, qui contient désormais le manifeste Stryker et les configurations MTP. Consigner le SHA réellement exécuté.
 
-## Ce que l'on montre
+## Préparation de la machine
+
+Prérequis : SDK .NET 10 compatible avec `global.json` et dépendances restaurables. Les tests unitaires utilisent xUnit v3. Le projet référence `ApplicationCore` et `Web`, d'où la sélection explicite du projet à muter dans les configurations.
+
+Depuis la racine du dépôt :
+
+```bash
+dotnet --info
+dotnet tool restore
+dotnet tool list --local
+dotnet run --project tests/UnitTests/UnitTests.csproj
+```
+
+Le manifeste racine fixe Stryker à **5.0.0**. Vérifier que l'exécution de référence annonce le runner `Microsoft.Testing.Platform`, exécute des tests et termine sans échec. Arrêter la préparation si seuls les projets compilent, si aucun test ne s'exécute ou si des tests échouent.
+
+Les configurations et la procédure de diagnostic figurent dans [tests/UnitTests/README.md](../tests/UnitTests/README.md). La campagne unitaire ne nécessite pas de navigateur Playwright.
+
+## Le changement de comportement
 
 Le code actuel exclut la remise lorsque le sous-total est strictement inférieur à 50 € :
 
@@ -26,68 +43,23 @@ Stryker.NET documente la mutation de `<` vers `<=`. Cette mutation exclut aussi 
 
 Le cas à 50,05 € ne distingue pas les deux implémentations. Le cas à 50 € les distingue immédiatement.
 
-## Préparation de la machine
+**Cette comparaison est une lecture des données et du code.** Elle ne décrit pas un rapport produit avec un seul test. L'ancienne proposition qui utilisait `--test-case-filter` a été retirée : le runner xUnit v3 sous MTP n'expose pas le filtre générique que Stryker attend.
 
-Prérequis : SDK compatible avec le `global.json` du dépôt, dépendances restaurables et version de Stryker compatible avec le runner de tests. Le dépôt demande la famille SDK .NET 10 et les tests unitaires utilisent xUnit v3 avec l'adaptateur Visual Studio. Le projet de tests référence `ApplicationCore` et `Web`, d'où la sélection explicite du projet à muter.
-
-Depuis la racine du dépôt, travailler dans un checkout de démonstration sur le commit indiqué. Pour une nouvelle installation locale de Stryker, créer un manifeste à la racine si aucun n'existe à cet endroit :
-
-```bash
-dotnet --info
-dotnet new tool-manifest
-dotnet tool install dotnet-stryker
-dotnet tool list --local
-dotnet restore tests/UnitTests/UnitTests.csproj
-dotnet test tests/UnitTests/UnitTests.csproj
-```
-
-Si un manifeste existe déjà à la racine, utiliser celui-ci et ne pas le recréer. S'il contient déjà Stryker, exécuter `dotnet tool restore`. La première installation choisit une version disponible : conserver ensuite la version exacte dans le manifeste pour la répétition et l'exécution en CI. Le manifeste existant sous `src/Web/.config` ne constitue pas un manifeste à la racine.
-
-Arrêter la préparation si les tests de référence échouent ou si aucun test n'est découvert. Résoudre le problème avant de lire des résultats de mutation.
-
-Créer, **dans le checkout de démonstration**, le fichier `tests/UnitTests/stryker-config.demo.json` suivant :
-
-```json
-{
-  "stryker-config": {
-    "project": "ApplicationCore.csproj",
-    "test-runner": "vstest",
-    "mutate": [
-      "**/Entities/BasketAggregate/Basket.cs"
-    ],
-    "mutation-level": "Standard",
-    "reporters": ["progress", "html", "json"]
-  }
-}
-```
-
-Ce périmètre sert uniquement à rendre la démonstration courte. Il ne couvre pas toute la fonctionnalité. Le niveau `Standard` inclut les mutations de comparaison nécessaires à ce scénario. Vérifier dans le rapport que `Basket.cs` et le mutant de borne ont bien été sélectionnés.
-
-## Première exécution : un test existant au-dessus du seuil
+## Exécution de la campagne panier
 
 Depuis `tests/UnitTests` :
 
 ```bash
-dotnet stryker --config-file stryker-config.demo.json --test-case-filter "FullyQualifiedName~AppliesPromo10IgnoringCaseAndSurroundingSpaces"
+dotnet stryker
 ```
 
-Le test sélectionné construit un panier à 50,05 € et vérifie notamment une remise de 5,01 €. Annoncer clairement que l'on réduit volontairement la suite pour isoler l'explication.
+La configuration versionnée `stryker-config.json` sélectionne :
 
-Dans le rapport HTML, ouvrir `Basket.DiscountAmount()`, puis sélectionner la mutation de `<` vers `<=` sur la comparaison du sous-total au minimum.
+- Le projet à muter `ApplicationCore.csproj` et le fichier `Basket.cs`.
+- Le runner `mtp`, le niveau de mutation `Standard` et la couverture `perTest`.
+- Les rapports HTML et JSON, avec arrêt si l'exécution de référence échoue.
 
-**Résultat attendu par lecture du code : `Survived`.** Le seul test retenu utilise un montant supérieur à la borne. Consigner le résultat réellement observé lors de la répétition. Ne pas généraliser ce résultat à la suite complète.
-
-Conserver le rapport HTML et JSON de cette exécution avant la suivante. Le répertoire de sortie exact est indiqué par Stryker.
-
-## Deuxième exécution : la suite unitaire complète
-
-Depuis le même répertoire, retirer le filtre de tests :
-
-```bash
-dotnet stryker --config-file stryker-config.demo.json
-```
-
-Le périmètre de code reste `Basket.cs`. Toute la suite unitaire est maintenant disponible pour détecter les mutations de ce fichier.
+Dans le rapport HTML, ouvrir `Basket.DiscountAmount()` et sélectionner la mutation de `<` vers `<=` sur la comparaison du sous-total au minimum.
 
 Le test existant `KeepsPromoCodeWithoutDiscountBelowMinimumAndRecalculatesAfterQuantityChange` :
 
@@ -96,15 +68,23 @@ Le test existant `KeepsPromoCodeWithoutDiscountBelowMinimumAndRecalculatesAfterQ
 3. Ajoute une unité du même article, ce qui porte le sous-total à 50 €.
 4. Exige une remise de 5 € et un total de 45 €.
 
-**Résultat attendu pour le même mutant : `Killed`.** Le mutant renverrait 0 € de remise à l'étape 4. Vérifier dans le rapport quel test l'a tué. Si plusieurs tests le détectent, le runner peut en signaler un autre.
+**Résultat attendu par lecture du code : `Killed`.** Le mutant renverrait 0 € de remise à l'étape 4. Vérifier dans le rapport quel test l'a tué. Si plusieurs tests le détectent, le runner peut en signaler un autre.
 
-Comparer les mutations par fichier, emplacement et remplacement. Ne pas supposer que leurs identifiants restent stables entre les exécutions.
+La démonstration montre la valeur d'un test existant. Elle ne prétend pas découvrir ou corriger une lacune historique de l'expérience initiale.
 
-## Ce que la démonstration permet d'affirmer
+## Si tout survit
 
-« Pour cette mutation de borne, le test de 50,05 € reste vert. La suite complète contient un test à 50 € qui doit détecter la régression. Le rapport confirme cette capacité quand on l'exécute. »
+Le problème connu avec xUnit v3 via VSTest peut produire une mesure trompeuse. Le choix explicite de MTP traite cette incompatibilité. L'absence de mutations tuées reste un signal à diagnostiquer avant de conclure sur la qualité des tests.
 
-Le passage de survivant à tué vient ici de l'élargissement de la suite exécutée. Aucun test manquant n'a été découvert ni ajouté dans l'expérience d'origine par ce scénario. Il ne faut pas présenter ces deux exécutions comme une amélioration historique du dépôt.
+Depuis `tests/UnitTests` :
+
+```bash
+dotnet stryker --config-file stryker-config.diagnostic.json --log-to-file
+```
+
+Ce mode conserve le même périmètre et le même niveau. Il exécute toute la suite pour chaque mutant, sans sélection par couverture, avec un seul worker. Il peut prendre plus de temps.
+
+Comparer le mutant de borne entre les rapports par fichier, emplacement et remplacement. Ne pas supposer que son identifiant reste stable. Conserver les journaux et vérifier les tests réellement exécutés, le runner et l'assembly chargé si ce mutant survit encore.
 
 ## Passage au travail de l'agent
 
@@ -119,23 +99,28 @@ Avec le rapport complet de l'expérience initiale, choisir un survivant réel et
 
 Une question métier possible porte sur l'arrondi du seuil : un sous-total brut de 49,995 € devient 50,00 € avec l'implémentation actuelle de `Subtotal()`. Cela ouvre une discussion sur la spécification. Ce cas n'est pas présenté comme un mutant observé ou comme un défaut confirmé.
 
-## Éléments à enregistrer pour une démonstration fiable
+## Extension à la feature
 
-| Élément | Valeur à conserver après répétition |
+Depuis `tests/UnitTests` :
+
+```bash
+dotnet stryker --config-file stryker-config.feature.json
+```
+
+Cette campagne inclut `Basket`, `PromotionCodes`, `Order` et `OrderService` au niveau `Advanced`, avec la suite unitaire. Elle couvre un ensemble de mutations différent de la campagne panier. Le transfert vers la commande et la persistance méritent aussi des vérifications d'intégration. Le test existant `PromotionCodePersistence` utilise EF Core InMemory et ne démontre pas l'exécution de la migration sur une base relationnelle réelle.
+
+## Éléments à enregistrer après répétition
+
+| Élément | Valeur à conserver |
 | --- | --- |
-| Commit du code et des tests | SHA exact |
-| Environnement | SDK, version Stryker, runner |
-| Sélection | Configuration, fichier muté, filtre de tests éventuel |
-| Première exécution | Rapport et statut observé du mutant de borne |
-| Deuxième exécution | Rapport, statut observé et test détecteur |
+| Commit du code, des tests et de la configuration | SHA exact |
+| Environnement | SDK, Stryker 5.0.0, runner MTP |
+| Sélection | Fichiers mutés, suite unitaire, niveau et mode de couverture |
+| Résultat | Rapport HTML/JSON et statut observé du mutant de borne |
+| Preuve | Test détecteur et assertion qui échoue |
+| Diagnostic éventuel | Rapport du mode sans couverture et journal |
 | Limites | Périmètre partiel et éventuelles erreurs techniques |
 
-Garder les rapports comme support de repli pour le jour de la présentation. Si le résultat diffère de la prédiction, examiner la version, le filtre, la mutation produite et les tests découverts avant de raconter l'expérience.
+Garder les rapports comme support de repli pour le jour de la présentation. Si le résultat diffère de la prédiction, examiner l'exécution avant de raconter l'expérience.
 
-## Extension possible à la feature complète
-
-Après la démonstration, proposer une campagne qui inclut `Basket`, `PromotionCodes`, `Order` et `OrderService`, avec les tests pertinents. Le transfert vers la commande et la persistance méritent une vérification séparée. Le test `PromotionCodePersistence` utilise EF Core InMemory et ne démontre pas l'exécution de la migration sur une base relationnelle réelle.
-
-Éviter un objectif de score global sans préciser ce périmètre. Pour une analyse limitée aux changements, étudier `since` dans la version Stryker retenue et conserver une campagne plus large à une fréquence adaptée.
-
-Sources techniques : [configuration Stryker.NET](https://stryker-mutator.io/docs/stryker-net/configuration/), [mutations disponibles](https://stryker-mutator.io/docs/stryker-net/mutations/), [installation](https://stryker-mutator.io/docs/stryker-net/getting-started/). Les références exactes au sample figurent dans le [README](README.md#sources).
+Sources techniques : [configuration Stryker.NET](https://stryker-mutator.io/docs/stryker-net/configuration/), [mutations disponibles](https://stryker-mutator.io/docs/stryker-net/mutations/), [MTP avec xUnit v3](https://xunit.net/docs/getting-started/v3/microsoft-testing-platform), [issue amont #3117](https://github.com/stryker-mutator/stryker-net/issues/3117). Les références exactes au sample figurent dans le [README](README.md#sources).
