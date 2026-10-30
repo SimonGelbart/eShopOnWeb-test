@@ -1,5 +1,14 @@
 # Tests de mutation et développement agentique
 
+## Support HTML et préparation locale
+
+- Ouvrir [index.html](index.html) par double-clic pour projeter la séance. Le fichier est autonome, sans installation ni connexion requise pour son contenu. Les liens vers GitHub et la documentation demandent une connexion.
+- Naviguer avec les flèches ou les boutons. `N` affiche les notes d’orateur et `F` demande le plein écran. Le menu permet de choisir une séquence. L’impression navigateur fournit un support de repli.
+- À la séquence du rapport, charger `mutation-report.json` pour afficher les compteurs et inspecter les vrais survivants. Le traitement se fait localement dans le navigateur.
+- Donner le contenu de [PROMPT-LOCAL.md](PROMPT-LOCAL.md) à un agent ouvert sur le dépôt pour exécuter les tests et Stryker, puis enrichir la présentation avec des résultats mesurés.
+
+Le parcours HTML commence par un encadré sur la feature et ouvre le diff réel de la branche. Il poursuit avec le code, une mutation de borne et la preuve attendue dans les tests. Le score de 80 % est étiqueté comme un résultat communiqué tant qu’aucun rapport n’a été chargé. Aucune PR n’était ouverte sur cette branche au moment de sa préparation. Le bloc `session-config` dans le HTML permet de renseigner son URL lorsqu’elle existe.
+
 ## Première proposition de présentation
 
 **Titre proposé : « Code et tests écrits par un agent : qu'est-ce qui nous donne confiance ? »**

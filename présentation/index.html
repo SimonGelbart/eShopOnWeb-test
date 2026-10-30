@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Séance technique .NET : relire une PR produite avec un agent grâce aux tests de mutation.">
+  <title>Une PR sous test — Développement agentique et mutations</title>
+  <style>
+    :root { --paper:#f5f3ed; --white:#fffefa; --ink:#182522; --muted:#5c6962; --line:#d6dbd0; --green:#165b44; --mint:#dcebd6; --amber:#805214; --amber-bg:#f3e6cb; --code:#172822; --violet:#65539b; --radius:20px; }
+    * { box-sizing:border-box; }
+    html { color-scheme:light; scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:var(--paper); font-family:Inter,"Segoe UI",Arial,sans-serif; font-size:18px; line-height:1.5; }
+    button,input,select { font:inherit; }
+    button,a,input,select { -webkit-tap-highlight-color:transparent; }
+    button,a { touch-action:manipulation; }
+    a { color:var(--green); text-underline-offset:4px; }
+    a:hover { text-decoration-thickness:2px; }
+    :focus-visible { outline:3px solid var(--violet); outline-offset:5px; }
+    button { cursor:pointer; }
+    button:disabled { opacity:.35; cursor:default; }
+    [hidden] { display:none !important; }
+    header { max-width:1500px; margin:auto; padding:23px 4.5vw 0; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+    .brand { display:flex; align-items:center; gap:12px; font-size:14px; font-weight:750; letter-spacing:.02em; }
+    .brand-icon { display:grid; place-items:center; width:34px; height:34px; border-radius:9px; color:white; background:var(--green); font-family:monospace; }
+    .header-meta { display:flex; align-items:center; gap:18px; font-size:12px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
+    .pill { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:999px; padding:5px 12px; font-size:12px; font-weight:650; letter-spacing:.02em; }
+    .pill.green { background:var(--mint); border-color:transparent; color:var(--green); }
+    .pill.amber { background:var(--amber-bg); border-color:transparent; color:var(--amber); }
+    main { max-width:1500px; margin:auto; }
+    .slide { padding:34px 4.5vw 118px; min-height:calc(100vh - 65px); }
+    body.js .slide { animation:appear .22s ease-out; }
+    .eyebrow { margin:0 0 12px; font-size:12px; text-transform:uppercase; letter-spacing:.15em; font-weight:750; color:var(--green); }
+    h1,h2,h3,p { margin-top:0; }
+    h1,h2 { font-weight:650; letter-spacing:-.045em; line-height:1.08; }
+    h1 { font-size:clamp(42px,4.8vw,78px); max-width:850px; margin-bottom:26px; }
+    h2 { font-size:clamp(32px,3.3vw,52px); max-width:1050px; margin-bottom:20px; }
+    h3 { font-size:21px; font-weight:650; letter-spacing:-.025em; margin-bottom:12px; }
+    .lead { color:var(--muted); font-size:clamp(18px,1.6vw,24px); line-height:1.45; max-width:840px; margin-bottom:28px; }
+    .small { font-size:13px; line-height:1.55; color:var(--muted); }
+    .muted { color:var(--muted); }
+    .grid { display:grid; gap:24px; }
+    .two { grid-template-columns:1fr 1fr; }
+    .three { grid-template-columns:repeat(3,1fr); }
+    .hero { grid-template-columns:1.15fr .85fr; gap:56px; align-items:center; padding-top:36px; }
+    .hero .lead { max-width:620px; }
+    .card { background:var(--white); border:1px solid var(--line); padding:26px; border-radius:var(--radius); min-width:0; }
+    .card.tinted { background:var(--mint); border-color:transparent; }
+    .card.dark { color:#eff4e8; background:var(--code); border-color:var(--code); }
+    .card.dark .small,.card.dark .muted { color:#b9c8bb; }
+    .brief { box-shadow:0 18px 55px -35px #193e3355; padding:30px; }
+    .brief h3 { font-size:28px; line-height:1.2; margin:18px 0 22px; }
+    .rule { display:flex; align-items:center; justify-content:space-between; padding:12px 0; gap:14px; border-top:1px solid var(--line); font-size:15px; }
+    .rule strong { font-size:23px; font-weight:650; white-space:nowrap; }
+    .hero-footer { border-top:1px solid var(--line); padding-top:18px; margin-top:30px; max-width:550px; font-size:14px; }
+    .actions { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin:20px 0; }
+    .button { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:11px 17px; border-radius:10px; font-size:14px; line-height:1.3; text-decoration:none; font-weight:650; border:1px solid var(--line); color:var(--ink); background:var(--white); }
+    .button.primary { background:var(--green); border-color:var(--green); color:white; }
+    .button:hover { filter:brightness(.96); text-decoration:none; }
+    .file-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; color:#cbd5c9; font:12px "Cascadia Code",Consolas,monospace; border-bottom:1px solid #ffffff1c; padding:13px 20px; }
+    .codebox { overflow:hidden; border-radius:var(--radius); background:var(--code); color:#eff4e8; min-width:0; }
+    pre { margin:0; padding:22px; overflow:auto; font:clamp(12px,1.03vw,16px)/1.65 "Cascadia Code","SFMono-Regular",Consolas,monospace; tab-size:4; }
+    code { font-family:"Cascadia Code","SFMono-Regular",Consolas,monospace; }
+    p code,li code,td code { font-size:.88em; }
+    .kw { color:#b9d2ff; }
+    .str { color:#d5e9ab; }
+    .num { color:#ffc9a0; }
+    .comment { color:#9caf9f; }
+    .hl { color:#15271f; background:#cfe8af; padding:1px 5px; border-radius:4px; }
+    .hl.bad { background:#f1c5ac; }
+    .signal-number { font-size:12px; color:var(--green); margin-bottom:20px; font-family:monospace; }
+    .signal h3 { font-size:27px; }
+    .signal p { font-size:16px; }
+    .signal .question { margin:22px 0 0; font-size:16px; border-top:1px solid var(--line); padding-top:16px; }
+    .callout { border-left:4px solid var(--green); padding:12px 0 12px 22px; margin:22px 0; font-size:20px; max-width:1000px; }
+    .amount-bar { display:flex; align-items:center; gap:13px; flex-wrap:wrap; padding:17px 20px; background:#e9ede3; border-radius:14px; margin-bottom:20px; }
+    .amount-bar label { font-size:14px; font-weight:650; }
+    .amount-bar input { width:130px; padding:9px 10px; border:1px solid #a9b7a5; border-radius:8px; background:var(--white); color:var(--ink); }
+    .amount-choice { padding:8px 13px; background:transparent; border:1px solid #bbc6b6; border-radius:8px; font-size:14px; }
+    .amount-choice[aria-pressed="true"] { background:var(--green); color:white; border-color:var(--green); }
+    .comparison { padding:23px 26px; }
+    .comparison pre { padding:15px 0; font-size:19px; }
+    .comparison .code-line { color:var(--muted); margin:10px 0 18px; font-size:16px; }
+    .money-result { display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:12px 0 0; }
+    .money-result strong { font-size:35px; font-weight:650; letter-spacing:-.04em; white-space:nowrap; }
+    .money-result span { font-size:14px; }
+    .outcome { padding:15px 20px; border-radius:12px; background:var(--mint); color:var(--green); font-size:17px; font-weight:600; margin-top:18px; }
+    .outcome.same { background:#e9ede3; color:var(--muted); }
+    .test-grid { grid-template-columns:1.35fr .65fr; }
+    .step { display:flex; align-items:flex-start; gap:14px; margin-bottom:18px; }
+    .step:last-child { margin-bottom:0; }
+    .step-index { flex:none; display:grid; place-items:center; width:31px; height:31px; background:var(--mint); color:var(--green); border-radius:50%; font:14px monospace; }
+    .step p { margin:1px 0 0; font-size:16px; }
+    .score-layout { grid-template-columns:.75fr 1.25fr; }
+    .score { font-size:clamp(70px,8vw,124px); font-weight:600; line-height:1.1; letter-spacing:-.07em; margin:14px 0; }
+    .metric-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:20px 0; }
+    .metric { border-top:1px solid var(--line); padding-top:12px; }
+    .metric strong { font-size:27px; font-weight:600; display:block; }
+    .metric span { font-size:12px; color:var(--muted); }
+    .upload { border:1px dashed #a5b69f; background:#edf1e7; border-radius:14px; padding:20px; }
+    .upload label { display:block; font-size:16px; font-weight:650; margin-bottom:12px; }
+    .upload input { display:block; max-width:100%; font-size:13px; }
+    #import-status { margin:12px 0 0; font-size:13px; }
+    #import-status.error { color:#a02f27; }
+    .triage-grid { grid-template-columns:1.08fr .92fr; }
+    .triage-card { padding:20px; }
+    .triage-card p { margin-bottom:0; font-size:15px; }
+    .triage-card h3 { font-size:18px; }
+    .survivor-select { width:100%; padding:11px; border:1px solid var(--line); border-radius:8px; background:var(--white); color:var(--ink); font-size:13px; margin-bottom:15px; }
+    .report-excerpt { max-height:180px; white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; }
+    .location { overflow-wrap:anywhere; font-size:13px; color:var(--muted); }
+    .empty { padding:25px; border:1px dashed #b7c2b0; border-radius:14px; color:var(--muted); font-size:16px; }
+    .review-grid { grid-template-columns:1fr 1fr; }
+    .review-grid pre { font-size:14px; }
+    .check-line { display:flex; gap:12px; margin-bottom:20px; font-size:17px; }
+    .check { width:22px; height:22px; border:1px solid #a8bba2; border-radius:6px; flex:none; margin-top:3px; }
+    .source-list { display:flex; flex-direction:column; gap:12px; font-size:14px; }
+    .speaker-notes { display:none; margin-top:23px; border:1px dashed #a7b29e; padding:15px 20px; border-radius:12px; font-size:14px; color:#4b5b4b; background:#edf0e6; }
+    body.show-notes .speaker-notes { display:block; }
+    .speaker-notes strong { color:var(--green); }
+    footer { position:fixed; bottom:0; left:0; right:0; padding:12px 4.5vw 16px; border-top:1px solid var(--line); background:var(--paper); z-index:5; }
+    .footer-inner { max-width:1365px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .footer-left,.footer-right { display:flex; align-items:center; gap:12px; }
+    footer button { border:1px solid var(--line); border-radius:9px; padding:9px 13px; font-size:13px; background:transparent; color:var(--ink); }
+    footer button[aria-pressed="true"] { background:var(--green); color:white; border-color:var(--green); }
+    #slide-select { max-width:260px; border:0; background:transparent; color:var(--ink); font-size:13px; padding:9px 4px; }
+    #slide-count { min-width:45px; font:12px monospace; color:var(--muted); }
+    #progress { position:absolute; left:0; bottom:0; height:3px; width:100%; border:0; background:var(--line); color:var(--green); }
+    #progress::-webkit-progress-bar { background:var(--line); }
+    #progress::-webkit-progress-value { background:var(--green); }
+    #progress::-moz-progress-bar { background:var(--green); }
+    .kbd-help { font-size:11px; color:var(--muted); }
+    .sr-only { position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+    noscript p { padding:15px 4.5vw; background:var(--amber-bg); }
+    @keyframes appear { from { opacity:.35; transform:translateY(5px); } to { opacity:1; transform:none; } }
+    @media (min-width:1600px) { .slide { padding-top:55px; } }
+    @media (max-width:1000px) { .hero { gap:25px; } .hero h1 { font-size:48px; } .grid { gap:18px; } pre { font-size:12px; } .header-meta .reference { display:none; } .metric-grid { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:740px) { body { font-size:16px; } header { padding-top:15px; } .header-meta { font-size:10px; } .grid.two,.grid.three,.hero,.test-grid,.score-layout,.triage-grid,.review-grid { grid-template-columns:1fr; } .slide { padding-top:26px; padding-bottom:145px; } .hero { padding-top:10px; } h1,.hero h1 { font-size:44px; } h2 { font-size:33px; } .card { padding:21px; } .footer-inner { align-items:flex-start; } .footer-left { gap:5px; flex-wrap:wrap; } .footer-right { gap:5px; } #slide-select { max-width:170px; font-size:11px; } footer button { padding:9px; } .kbd-help { display:none; } .header-meta .pill { display:none; } .money-result strong { font-size:32px; } }
+    @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } body.js .slide { animation:none; } }
+    @media print { @page { size:A4 landscape; margin:12mm; } body { background:white; font-size:13px; } header,footer,.actions,.speaker-notes,.upload,.amount-bar,noscript { display:none !important; } main { max-width:none; } .slide,.slide[hidden] { display:block !important; padding:8mm 0; min-height:178mm; page-break-after:always; break-after:page; animation:none !important; } .slide:last-child { page-break-after:auto; break-after:auto; } h1 { font-size:44px; } h2 { font-size:32px; } .lead { font-size:17px; } .card { padding:16px; } pre { font-size:10px !important; white-space:pre-wrap; overflow:visible; } .hero { padding-top:0; gap:25px; } .small { font-size:10px; } .grid { gap:15px; } * { print-color-adjust:exact; -webkit-print-color-adjust:exact; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="brand-icon" aria-hidden="true">{ }</span> eShopOnWeb <span class="muted">/ laboratoire .NET</span></div>
+    <div class="header-meta"><span class="reference">Développement agentique</span><span class="pill">9 séquences / 25 min</span></div>
+  </header>
+  <noscript><p>Les séquences restent lisibles ci-dessous. Active JavaScript pour la navigation et l’exemple interactif.</p></noscript>
+  <main>
+    <section class="slide" id="contexte" data-title="La PR en une minute" data-time="3 min" aria-labelledby="title-1">
+      <div class="grid hero">
+        <div>
+          <p class="eyebrow">01 / Le point de départ</p>
+          <h1 id="title-1">Cette PR est-elle prête pour la revue ?</h1>
+          <p class="lead">Un agent a écrit une feature et ses tests. Nous allons examiner les preuves qui accompagnent ce code.</p>
+          <div class="actions"><a class="button primary review-link" href="https://github.com/SimonGelbart/eShopOnWeb-test/compare/main...feat%2Ftest_v1" target="_blank" rel="noopener noreferrer">Ouvrir le diff de branche</a><button class="button" type="button" data-goto="2">Commencer la lecture</button></div>
+          <p class="hero-footer">Question de séance : si une règle métier se dégrade, quel test nous prévient ?</p>
+        </div>
+        <aside class="card brief" aria-label="Sujet de la PR">
+          <span class="pill green">Le sujet de la PR</span>
+          <h3>Ajouter le code promotionnel <code>PROMO10</code>.</h3>
+          <div class="rule"><span>Remise sur le panier</span><strong>10 %</strong></div>
+          <div class="rule"><span>Minimum, borne incluse</span><strong>50 €</strong></div>
+          <div class="rule"><span>Plafond de remise</span><strong>15 €</strong></div>
+          <div class="rule"><span>Exemple à vérifier</span><strong>50 € devient 45 €</strong></div>
+          <p class="small" style="margin:18px 0 0">L’agent a produit l’implémentation et les tests. Ces règles décrivent le sample et restent à confronter à la demande métier initiale.</p>
+        </aside>
+      </div>
+      <aside class="speaker-notes"><strong>À dire — 3 min.</strong> Présenter le besoin avant l’outil. Demander ce que le public vérifierait dans cette PR. Aucune PR n’était ouverte au moment de la création du support : le bouton ouvre le diff réel de la branche. Remplacer son URL par celle de la PR lorsqu’elle existe.</aside>
+    </section>
+
+    <section class="slide" id="diff" data-title="Lire le changement" data-time="4 min" aria-labelledby="title-2">
+      <p class="eyebrow">02 / Le code proposé</p>
+      <h2 id="title-2">Une règle tient dans cette condition.</h2>
+      <p class="lead">La remise dépend du code appliqué et du sous-total. Les tests doivent distinguer les comportements aux bornes.</p>
+      <div class="grid two">
+        <div class="codebox"><div class="file-bar"><span>Basket.cs / DiscountAmount()</span><span>C#</span></div><pre><code><span class="kw">public decimal</span> DiscountAmount()
+{
+    <span class="kw">if</span> (PromoCode != PromotionCodes.Promo10
+        || Subtotal() <span class="hl">&lt;</span> PromotionCodes.MinimumSubtotal)
+    {
+        <span class="kw">return</span> <span class="num">0m</span>;
+    }
+
+    <span class="kw">var</span> discount = RoundMoney(
+        Subtotal() * PromotionCodes.DiscountRate);
+    <span class="kw">return</span> Math.Min(discount,
+        PromotionCodes.MaximumDiscount);
+}</code></pre></div>
+        <div class="card">
+          <p class="eyebrow">Ce que nous inspectons</p>
+          <h3>Le besoin, le calcul et son observation.</h3>
+          <div class="step"><span class="step-index">1</span><p>À 50 € exactement, la remise commence.</p></div>
+          <div class="step"><span class="step-index">2</span><p>Le calcul arrondit au centime, avec <code>AwayFromZero</code>.</p></div>
+          <div class="step"><span class="step-index">3</span><p>La remise plafonne à 15 €, même si le panier augmente.</p></div>
+          <div class="actions"><a class="button" href="https://github.com/SimonGelbart/eShopOnWeb-test/blob/85b324203bf774056cdc53f10add35d513304601/src/ApplicationCore/Entities/BasketAggregate/Basket.cs" target="_blank" rel="noopener noreferrer">Lire le fichier</a><a class="button" href="https://github.com/SimonGelbart/eShopOnWeb-test/blob/85b324203bf774056cdc53f10add35d513304601/tests/UnitTests/ApplicationCore/Entities/BasketTests/BasketPromotion.cs" target="_blank" rel="noopener noreferrer">Lire les tests</a></div>
+          <p class="small">Extrait du code existant, reformatté pour la lecture. Référence : commit <code>85b3242</code>.</p>
+        </div>
+      </div>
+      <aside class="speaker-notes"><strong>À dire — 4 min.</strong> Ouvrir le vrai diff, puis revenir au support. Montrer un changement métier et un test. Éviter de parcourir toute la PR. Faire calculer 5 € de remise sur 50 € avant de parler de mutation.</aside>
+    </section>
+
+    <section class="slide" id="signaux" data-title="Ce que disent les tests verts" data-time="2 min" aria-labelledby="title-3">
+      <p class="eyebrow">03 / Les signaux de confiance</p>
+      <h2 id="title-3">Les tests passent. Que vérifient-ils ?</h2>
+      <p class="lead">Chaque signal répond à une question différente dans la revue.</p>
+      <div class="grid three">
+        <article class="card signal"><div class="signal-number">01 / EXÉCUTION</div><h3>Tests verts</h3><p>Les vérifications exécutées réussissent sur cette version.</p><p class="question">Quels résultats sont réellement observés par les assertions ?</p></article>
+        <article class="card signal"><div class="signal-number">02 / PARCOURS</div><h3>Couverture</h3><p>Les tests exécutent certaines portions du code.</p><p class="question">Le test réagirait-il si le comportement de cette ligne changeait ?</p></article>
+        <article class="card signal tinted"><div class="signal-number">03 / SENSIBILITÉ</div><h3>Mutation</h3><p>Nous altérons le code pour observer la réaction de la suite.</p><p class="question">Quel test détecte cette modification du comportement ?</p></article>
+      </div>
+      <p class="callout">Quand un agent écrit le code et ses tests, une même interprétation peut se retrouver des deux côtés.</p>
+      <aside class="speaker-notes"><strong>À dire — 2 min.</strong> Ce risque existe aussi avec des humains. L’intérêt est d’ajouter une vérification observable dans le processus de développement. Une mutation ne retrouve pas automatiquement les exigences absentes du code.</aside>
+    </section>
+
+    <section class="slide" id="mutation" data-title="Explorer une mutation" data-time="4 min" aria-labelledby="title-4">
+      <p class="eyebrow">04 / Une erreur plausible</p>
+      <h2 id="title-4">Un seul caractère déplace la borne.</h2>
+      <div class="amount-bar">
+        <label for="amount">Sous-total avec PROMO10</label><input id="amount" type="number" min="0" max="1000000" step="0.01" value="50" inputmode="decimal" aria-describedby="lab-note">
+        <button class="amount-choice" type="button" data-cents="2500" aria-pressed="false">25 €</button><button class="amount-choice" type="button" data-cents="5000" aria-pressed="true">50 €</button><button class="amount-choice" type="button" data-cents="5005" aria-pressed="false">50,05 €</button><button class="amount-choice" type="button" data-cents="20000" aria-pressed="false">200 €</button>
+      </div>
+      <div class="grid two" aria-live="polite" aria-atomic="true">
+        <article class="card comparison"><span class="pill green">Code actuel</span><p class="code-line"><code>Subtotal() <span class="hl">&lt;</span> 50m</code></p><p>Pas de remise sous 50 €.</p><div class="money-result"><span>Remise</span><strong id="original-discount">5,00 €</strong></div><div class="money-result"><span>Total</span><strong id="original-total">45,00 €</strong></div></article>
+        <article class="card comparison"><span class="pill amber">Code muté</span><p class="code-line"><code>Subtotal() <span class="hl bad">&lt;=</span> 50m</code></p><p>Pas de remise jusqu’à 50 € inclus.</p><div class="money-result"><span>Remise</span><strong id="mutant-discount">0,00 €</strong></div><div class="money-result"><span>Total</span><strong id="mutant-total">50,00 €</strong></div></article>
+      </div>
+      <p class="outcome" id="lab-outcome" role="status">À 50,00 €, les résultats diffèrent : ce cas distingue les deux implémentations.</p>
+      <p class="small" id="lab-note">Illustration pédagogique en JavaScript, sur des montants positifs au centime. Aucun test .NET ni Stryker ne s’exécute dans cette page.</p>
+      <aside class="speaker-notes"><strong>À dire — 4 min.</strong> Commencer à 50,05 € : le résultat est identique. Demander au public quel montant choisir pour faire apparaître la régression, puis sélectionner 50 €. Le calcul est illustratif, distinct d’une mesure Stryker.</aside>
+    </section>
+
+    <section class="slide" id="test" data-title="Le test qui observe la borne" data-time="3 min" aria-labelledby="title-5">
+      <p class="eyebrow">05 / L’assertion qui compte</p>
+      <h2 id="title-5">Un test existant atteint exactement 50 €.</h2>
+      <div class="grid test-grid">
+        <div class="codebox"><div class="file-bar"><span>BasketPromotion.cs / extrait d’un [Fact]</span><span>xUnit v3</span></div><pre><code><span class="kw">var</span> basket = <span class="kw">new</span> Basket(<span class="str">"buyer"</span>);
+basket.AddItem(<span class="num">1</span>, <span class="num">25m</span>);
+basket.ApplyPromoCode(<span class="str">"PROMO10"</span>);
+
+Assert.Equal(<span class="num">0m</span>, basket.DiscountAmount());
+
+basket.AddItem(<span class="num">1</span>, <span class="num">25m</span>);
+
+Assert.Equal(PromotionCodes.Promo10, basket.PromoCode);
+Assert.Equal(<span class="num">50m</span>, basket.Subtotal());
+<span class="hl">Assert.Equal(5m, basket.DiscountAmount());</span>
+Assert.Equal(<span class="num">45m</span>, basket.Total());</code></pre></div>
+        <div class="card">
+          <span class="pill green">Détection attendue</span>
+          <h3 style="margin-top:20px">Le mutant renverrait 0 € de remise.</h3>
+          <p>Cette assertion exige 5 €. Elle devrait échouer lorsque le mutant est actif.</p>
+          <p class="small"><code>KeepsPromoCodeWithoutDiscountBelowMinimumAndRecalculatesAfterQuantityChange</code></p>
+          <p class="callout" style="font-size:17px">À confirmer dans le rapport : statut <code>Killed</code> et test détecteur.</p>
+        </div>
+      </div>
+      <aside class="speaker-notes"><strong>À dire — 3 min.</strong> Le test est déjà dans la branche. Nous ne prétendons pas avoir découvert une lacune historique. Un mutant tué prouve la détection de cette altération. Pour une règle sensible, inspecter l’assertion responsable de l’échec.</aside>
+    </section>
+
+    <section class="slide" id="rapport" data-title="Lire le résultat réel" data-time="3 min" aria-labelledby="title-6">
+      <p class="eyebrow">06 / Les preuves de l’exécution</p>
+      <h2 id="title-6">Le score ouvre la lecture du rapport.</h2>
+      <div class="grid score-layout">
+        <div class="card dark"><span class="pill" id="score-status">Résultat communiqué</span><div class="score" id="score-value">80 %</div><p id="score-description">Score obtenu localement et communiqué par Simon. Le rapport de cette exécution n’a pas encore été chargé ici.</p><p class="small" id="score-scope">Périmètre, commit et éventuels timeouts à confirmer dans les preuves de l’exécution.</p></div>
+        <div class="card">
+          <h3>Quels mutants restent à comprendre ?</h3>
+          <p class="small">Le score rapporte les mutants détectés aux mutants valides. Les timeouts comptent comme détectés. Les erreurs et exclusions restent à lire séparément.</p>
+          <div class="metric-grid"><div class="metric"><strong id="count-killed">—</strong><span>Killed</span></div><div class="metric"><strong id="count-survived">—</strong><span>Survived</span></div><div class="metric"><strong id="count-nocoverage">—</strong><span>NoCoverage</span></div><div class="metric"><strong id="count-timeout">—</strong><span>Timeout</span></div></div>
+          <div class="upload"><label for="report-file">Charger ton rapport Stryker JSON</label><input id="report-file" type="file" accept=".json,application/json"><p class="small" style="margin:10px 0 0">Lecture locale dans le navigateur. Le fichier n’est envoyé à aucun service.</p><p id="import-status" role="status">Les compteurs et les survivants seront extraits du fichier choisi.</p></div>
+          <p class="small" style="margin:15px 0 0" id="report-extra">La configuration par défaut du dépôt cible Basket.cs. La campagne feature couvre davantage de fichiers.</p>
+        </div>
+      </div>
+      <aside class="speaker-notes"><strong>À dire — 3 min.</strong> Précharger le rapport avant la séance. En son absence, les 80 % restent un résultat communiqué, sans compteurs inventés. Le chargement calcule les métriques à partir des états du JSON, sans vérifier le commit ni la configuration qui l’ont produit.</aside>
+    </section>
+
+    <section class="slide" id="analyse" data-title="L’enquête avant la PR" data-time="4 min" aria-labelledby="title-7">
+      <p class="eyebrow">07 / Le rôle de l’agent d’analyse</p>
+      <h2 id="title-7">Un survivant devient une question précise.</h2>
+      <div class="grid triage-grid">
+        <div class="card">
+          <div id="no-survivors" class="empty">Charge un rapport à la séquence précédente pour choisir un vrai mutant survivant. Aucun survivant fictif n’est présenté comme un résultat mesuré.</div>
+          <div id="survivor-inspector" hidden><label for="survivor-select" class="small">Survivants et mutations sans couverture</label><select id="survivor-select" class="survivor-select"></select><p id="mutant-location" class="location"></p><div class="codebox"><div class="file-bar">Code original extrait du rapport</div><pre id="mutant-original" class="report-excerpt"></pre></div><p class="small" style="margin:15px 0 7px">Remplacement proposé par le mutant</p><div class="codebox"><pre id="mutant-replacement" class="report-excerpt"></pre></div></div>
+          <p class="callout" style="font-size:17px">Pour quelle entrée valide le comportement change-t-il, et quel attendu découle de la règle métier ?</p>
+        </div>
+        <div>
+          <div class="grid two" style="gap:12px"><article class="card triage-card"><h3>Test insuffisant</h3><p>Ajouter un exemple discriminant et un attendu issu du besoin.</p></article><article class="card triage-card"><h3>Règle ambiguë</h3><p>Formuler deux comportements possibles et faire décider le métier.</p></article><article class="card triage-card"><h3>Mutation équivalente</h3><p>Justifier l’équivalence sur le domaine valide, puis faire relire.</p></article><article class="card triage-card"><h3>Résultat incohérent</h3><p>Vérifier le runner, les tests exécutés et l’activation du mutant.</p></article></div>
+          <p style="font-size:16px;margin:20px 0 0">Avant la PR, l’agent examine le rapport, propose une action et relance les vérifications après les corrections autorisées.</p>
+          <p class="small">Un autre agent apporte un regard supplémentaire. La décision métier reste fondée sur la spécification et les personnes compétentes.</p>
+        </div>
+      </div>
+      <aside class="speaker-notes"><strong>À dire — 4 min.</strong> Choisir un seul survivant lisible. Montrer le changement observable, son lien à une règle et la décision proposée. Les catégories ne s’attribuent pas automatiquement à partir du statut. Le prompt local fournit le protocole d’analyse.</aside>
+    </section>
+
+    <section class="slide" id="revue" data-title="Ce que reçoit le relecteur" data-time="3 min" aria-labelledby="title-8">
+      <p class="eyebrow">08 / Retour à la PR</p>
+      <h2 id="title-8">La revue reçoit des preuves inspectables.</h2>
+      <div class="grid review-grid">
+        <div class="codebox"><div class="file-bar"><span>Description de PR / modèle à renseigner</span><span>Markdown</span></div><pre><code>### Vérification par mutation
+
+- Version analysée : &lt;SHA du code et des tests&gt;
+- Runner : MTP / Stryker 5.0.0
+- Périmètre : &lt;fichiers et tests exécutés&gt;
+- Rapport : &lt;lien vers l’artefact&gt;
+- Résultat : &lt;score et compteurs mesurés&gt;
+- Règle éprouvée : &lt;exemple et test détecteur&gt;
+- Survivants : &lt;analyse et décision&gt;
+- Questions métier : &lt;décision attendue&gt;</code></pre></div>
+        <div class="card">
+          <h3>Le relecteur peut vérifier :</h3>
+          <div class="check-line"><span class="check" aria-hidden="true"></span><span>La correspondance entre le rapport et la version proposée.</span></div>
+          <div class="check-line"><span class="check" aria-hidden="true"></span><span>Le test qui détecte une altération d’une règle critique.</span></div>
+          <div class="check-line"><span class="check" aria-hidden="true"></span><span>La justification des survivants et les points à clarifier.</span></div>
+          <p class="small">Une preuve de sensibilité des tests s’ajoute aux contrôles habituels. La revue humaine conserve son rôle sur les attentes du produit.</p>
+        </div>
+      </div>
+      <aside class="speaker-notes"><strong>À dire — 3 min.</strong> Revenir à la PR ou à son diff. Le sujet est la qualité de la décision de revue. Un score global ne remplace pas les exemples et les explications. Une règle absente de la spécification peut rester invisible malgré un score élevé.</aside>
+    </section>
+
+    <section class="slide" id="suite" data-title="Rejouer et enrichir la séance" data-time="1 min" aria-labelledby="title-9">
+      <p class="eyebrow">09 / À reprendre dans l’équipe</p>
+      <h2 id="title-9">Avant la PR, une étape pour éprouver les tests.</h2>
+      <p class="lead">Le résultat attendu : une règle vérifiée, une preuve lisible et une décision explicite pour les survivants pertinents.</p>
+      <div class="grid two">
+        <div class="card tinted"><h3>Rejouer sur ce dépôt</h3><div class="codebox"><pre><code>dotnet tool restore
+dotnet run --project tests/UnitTests/UnitTests.csproj
+cd tests/UnitTests
+dotnet stryker</code></pre></div><div class="actions"><a class="button primary" href="PROMPT-LOCAL.md">Prompt pour l’agent local</a><a class="button" href="DEMO.md">Conducteur de démonstration</a></div><p class="small" style="margin:0">Le prompt permet d’exécuter les vérifications et d’enrichir ce support avec un cas réel, en distinguant mesures et illustrations.</p></div>
+        <div class="card"><h3>Références et limites</h3><div class="source-list"><a href="https://stryker-mutator.io/docs/mutation-testing-elements/mutant-states-and-metrics/" target="_blank" rel="noopener noreferrer">États des mutants et métriques</a><a href="https://stryker-mutator.io/docs/stryker-net/configuration/" target="_blank" rel="noopener noreferrer">Configuration Stryker.NET et limites des filtres MTP</a><a href="https://xunit.net/docs/getting-started/v3/microsoft-testing-platform" target="_blank" rel="noopener noreferrer">xUnit v3 et Microsoft Testing Platform</a><a href="WORKFLOW-AGENT.md">Contrat d’analyse de l’agent et restitution dans la PR</a></div><p class="small" style="margin:20px 0 0">Aucune campagne .NET n’a été exécutée dans l’environnement de création du support. Le cas de borne est une déduction du code. Le score de 80 % a été communiqué par Simon.</p></div>
+      </div>
+      <aside class="speaker-notes"><strong>À dire — 1 min.</strong> Ouvrir la discussion : sur quelle règle de votre prochaine PR voudriez-vous cette preuve ? Pour la répétition, garder un rapport local et noter son commit. Les notes se masquent avec N. L’impression navigateur produit un support de repli.</aside>
+    </section>
+  </main>
+  <footer aria-label="Navigation de la présentation">
+    <div class="footer-inner"><div class="footer-left"><span id="slide-count">01 / 09</span><label for="slide-select" class="sr-only">Choisir une séquence</label><select id="slide-select"></select><span class="kbd-help">Flèches : naviguer / N : notes / F : plein écran</span></div><div class="footer-right"><button id="notes-toggle" type="button" aria-pressed="false">Notes</button><button id="fullscreen-toggle" type="button" aria-label="Activer ou quitter le plein écran">Plein écran</button><button id="previous" type="button" aria-label="Séquence précédente">Précédent</button><button id="next" type="button" aria-label="Séquence suivante">Suivant</button></div></div>
+    <progress id="progress" value="1" max="9" aria-label="Progression dans la présentation"></progress>
+  </footer>
+  <div id="navigation-status" class="sr-only" role="status" aria-live="polite"></div>
+
+  <!-- Un agent local peut renseigner cette URL lorsqu’une PR existe. -->
+  <script id="session-config" type="application/json">{"prUrl":null,"referenceCommit":"85b324203bf774056cdc53f10add35d513304601"}</script>
+  <!-- Facultatif : remplacer null par un rapport Stryker complet pour le précharger hors ligne. -->
+  <script id="embedded-report" type="application/json">null</script>
+  <script>
+    'use strict';
+    document.body.classList.add('js');
+    const slides = [...document.querySelectorAll('.slide')];
+    const selector = document.getElementById('slide-select');
+    const previous = document.getElementById('previous');
+    const next = document.getElementById('next');
+    let current = 0;
+    slides.forEach((slide, i) => { const option = document.createElement('option'); option.value = String(i); option.textContent = `${String(i + 1).padStart(2, '0')} / ${slide.dataset.title}`; selector.append(option); });
+    function goTo(index, updateHash = true) {
+      current = Math.max(0, Math.min(slides.length - 1, index));
+      slides.forEach((slide, i) => { slide.hidden = i !== current; });
+      selector.value = String(current);
+      previous.disabled = current === 0; next.disabled = current === slides.length - 1;
+      document.getElementById('slide-count').textContent = `${String(current + 1).padStart(2, '0')} / ${String(slides.length).padStart(2, '0')}`;
+      document.getElementById('progress').value = current + 1;
+      document.getElementById('navigation-status').textContent = `${current + 1}. ${slides[current].dataset.title}`;
+      document.title = `${slides[current].dataset.title} — Une PR sous test`;
+      if (updateHash) { try { history.replaceState(null, '', '#' + slides[current].id); } catch (_) { /* Le support reste navigable si history est indisponible sur file://. */ } }
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    previous.addEventListener('click', () => goTo(current - 1));
+    next.addEventListener('click', () => goTo(current + 1));
+    selector.addEventListener('change', () => goTo(Number(selector.value)));
+    document.querySelectorAll('[data-goto]').forEach(button => button.addEventListener('click', () => goTo(Number(button.dataset.goto) - 1)));
+    function toggleNotes() { const visible = document.body.classList.toggle('show-notes'); document.getElementById('notes-toggle').setAttribute('aria-pressed', String(visible)); }
+    document.getElementById('notes-toggle').addEventListener('click', toggleNotes);
+    async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch (_) { document.getElementById('navigation-status').textContent = 'Le navigateur ne permet pas le plein écran dans ce contexte.'; } }
+    document.getElementById('fullscreen-toggle').addEventListener('click', toggleFullscreen);
+    document.addEventListener('keydown', event => {
+      if (event.ctrlKey || event.metaKey || event.altKey || event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+      if (event.key === ' ' && event.target.closest('button, a')) return;
+      if (['ArrowRight', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); goTo(current + 1); }
+      else if (['ArrowLeft', 'PageUp'].includes(event.key)) { event.preventDefault(); goTo(current - 1); }
+      else if (event.key === 'Home') { event.preventDefault(); goTo(0); }
+      else if (event.key === 'End') { event.preventDefault(); goTo(slides.length - 1); }
+      else if (event.key.toLowerCase() === 'n') toggleNotes();
+      else if (event.key.toLowerCase() === 'f') toggleFullscreen();
+    });
+    window.addEventListener('hashchange', () => { const index = slides.findIndex(s => '#' + s.id === location.hash); if (index >= 0) goTo(index, false); });
+    const initialIndex = slides.findIndex(s => '#' + s.id === location.hash);
+    goTo(initialIndex >= 0 ? initialIndex : 0, false);
+
+    const money = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+    const amount = document.getElementById('amount');
+    function renderLab() {
+      const value = amount.valueAsNumber;
+      if (!Number.isFinite(value) || value < 0 || value > 1000000) { document.getElementById('lab-outcome').textContent = 'Choisir un montant entre 0 et 1 000 000 €.'; return; }
+      const cents = Math.round(value * 100);
+      if (Math.abs(value * 100 - cents) > 0.000001) { document.getElementById('lab-outcome').textContent = 'Choisir un montant au centime, par exemple 50,05 €.'; return; }
+      // 10 % d’un montant entier en centimes, arrondi à la demi-unité supérieure pour les montants positifs.
+      const roundedDiscount = Math.min(1500, Math.floor((cents + 5) / 10));
+      const original = cents < 5000 ? 0 : roundedDiscount;
+      const mutated = cents <= 5000 ? 0 : roundedDiscount;
+      document.getElementById('original-discount').textContent = money.format(original / 100);
+      document.getElementById('mutant-discount').textContent = money.format(mutated / 100);
+      document.getElementById('original-total').textContent = money.format((cents - original) / 100);
+      document.getElementById('mutant-total').textContent = money.format((cents - mutated) / 100);
+      const different = original !== mutated;
+      const outcome = document.getElementById('lab-outcome');
+      outcome.classList.toggle('same', !different);
+      outcome.textContent = different ? `À ${money.format(cents / 100)}, les résultats diffèrent : ce cas distingue les deux implémentations.` : `À ${money.format(cents / 100)}, les résultats sont identiques : ce cas ne distingue pas cette mutation.`;
+      document.querySelectorAll('[data-cents]').forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.cents) === cents)));
+    }
+    amount.addEventListener('input', renderLab);
+    document.querySelectorAll('[data-cents]').forEach(button => button.addEventListener('click', () => { amount.value = String(Number(button.dataset.cents) / 100); renderLab(); }));
+    renderLab();
+
+    let inspectedMutants = [];
+    function setText(id, text) { document.getElementById(id).textContent = text; }
+    function inspectMutant() {
+      const m = inspectedMutants[Number(document.getElementById('survivor-select').value)];
+      if (!m) return;
+      const start = m.location && m.location.start;
+      const line = start && Number.isInteger(start.line) ? start.line : null;
+      setText('mutant-location', `${m.file} / ligne ${line || '?'} / ${m.status} / ${String(m.mutatorName || 'mutateur non indiqué').slice(0, 100)}`);
+      const source = typeof m.source === 'string' && line ? m.source.split(/\r?\n/).slice(Math.max(0, line - 2), line + 3).join('\n') : 'Le rapport ne fournit pas de source exploitable pour cet emplacement.';
+      setText('mutant-original', source.slice(0, 5000));
+      setText('mutant-replacement', typeof m.replacement === 'string' ? (m.replacement.slice(0, 3000) || '(remplacement vide)') : 'Remplacement non fourni par le rapport.');
+    }
+    function applyReport(report, label) {
+      if (!report || typeof report !== 'object' || !report.files || typeof report.files !== 'object' || Array.isArray(report.files)) throw new Error('Format attendu : un rapport Stryker avec un objet files contenant les mutants.');
+      const counts = { Killed:0, Survived:0, NoCoverage:0, Timeout:0, CompileError:0, RuntimeError:0, Ignored:0, Pending:0, Other:0 };
+      const mutants = []; let fileCount = 0;
+      for (const [file, entry] of Object.entries(report.files)) {
+        if (!entry || !Array.isArray(entry.mutants)) continue;
+        if (entry.mutants.length) fileCount++;
+        for (const raw of entry.mutants) {
+          if (!raw || typeof raw !== 'object') continue;
+          const status = typeof raw.status === 'string' && Object.hasOwn(counts, raw.status) ? raw.status : 'Other';
+          counts[status]++;
+          mutants.push({ ...raw, status, file:String(file).slice(0, 400), source:entry.source });
+          if (mutants.length > 100000) throw new Error('Le rapport dépasse la limite de 100 000 mutants de ce support.');
+        }
+      }
+      if (!mutants.length) throw new Error('Aucun mutant trouvé dans ce fichier. Le rapport précédent est conservé.');
+      const valid = counts.Killed + counts.Timeout + counts.Survived + counts.NoCoverage;
+      const score = valid ? (counts.Killed + counts.Timeout) * 100 / valid : null;
+      const incomplete = counts.Pending > 0 || counts.Other > 0;
+      setText('score-value', score === null ? '—' : `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits:1 }).format(score)} %`);
+      setText('score-status', incomplete ? 'Rapport partiel' : 'Rapport chargé localement');
+      setText('score-description', `Calcul à partir de ${valid} mutants valides : ${counts.Killed} tués et ${counts.Timeout} timeouts. Le commit et la configuration restent à vérifier avec l’exécution.`);
+      setText('score-scope', `${fileCount} fichier(s) contenant des mutants. Source : ${String(label).slice(0, 160)}.`);
+      setText('count-killed', String(counts.Killed)); setText('count-survived', String(counts.Survived)); setText('count-nocoverage', String(counts.NoCoverage)); setText('count-timeout', String(counts.Timeout));
+      setText('report-extra', `Hors dénominateur : ${counts.CompileError} erreurs de compilation, ${counts.RuntimeError} erreurs d’exécution et ${counts.Ignored} exclusions. ${counts.Pending} en attente, ${counts.Other} état(s) inconnu(s).`);
+      inspectedMutants = mutants.filter(m => m.status === 'Survived' || m.status === 'NoCoverage');
+      const select = document.getElementById('survivor-select'); select.replaceChildren();
+      inspectedMutants.forEach((m, i) => { const option = document.createElement('option'); option.value = String(i); option.textContent = `${m.status} / ${m.file.split(/[\\/]/).pop()} / ${String(m.id ?? i).slice(0, 50)}`; select.append(option); });
+      document.getElementById('survivor-inspector').hidden = inspectedMutants.length === 0;
+      document.getElementById('no-survivors').hidden = inspectedMutants.length > 0;
+      if (!inspectedMutants.length) setText('no-survivors', 'Ce rapport ne contient aucun mutant Survived ou NoCoverage. Vérifier également les erreurs, exclusions et le périmètre.');
+      inspectMutant();
+      const status = document.getElementById('import-status'); status.classList.remove('error'); status.textContent = `${mutants.length} mutants lus. ${incomplete ? 'Rapport incomplet : interpréter le score avec cette limite.' : 'Les cas réels sont disponibles à la séquence suivante.'}`;
+    }
+    document.getElementById('survivor-select').addEventListener('change', inspectMutant);
+    document.getElementById('report-file').addEventListener('change', async event => {
+      const file = event.target.files[0]; if (!file) return;
+      try { if (file.size > 20 * 1024 * 1024) throw new Error('Choisir un rapport de moins de 20 Mo.'); const report = JSON.parse(await file.text()); applyReport(report, file.name); }
+      catch (error) { const status = document.getElementById('import-status'); status.classList.add('error'); status.textContent = `Lecture impossible : ${error.message}`; }
+    });
+    try { const config = JSON.parse(document.getElementById('session-config').textContent); if (typeof config.prUrl === 'string' && /^https:\/\/github\.com\/SimonGelbart\/eShopOnWeb-test\/pull\/\d+$/.test(config.prUrl)) document.querySelectorAll('.review-link').forEach(a => { a.href = config.prUrl; a.textContent = 'Ouvrir la PR'; }); } catch (_) { /* Le diff reste disponible. */ }
+    try { const embedded = JSON.parse(document.getElementById('embedded-report').textContent); if (embedded) applyReport(embedded, 'rapport embarqué dans le support'); } catch (_) { setText('import-status', 'Le rapport embarqué est invalide. Charger un fichier JSON valide pour poursuivre.'); }
+  </script>
+</body>
+</html>
