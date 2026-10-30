@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc.Testing;
+﻿using System.Globalization;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
 namespace Microsoft.eShopWeb.FunctionalTests.Web.Pages.Basket;
@@ -129,9 +130,9 @@ public class IndexTest : IClassFixture<TestApplication>
         var appliedBasket = await applyResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("PROMO10", appliedBasket);
-        Assert.Contains("51.00", appliedBasket);
-        Assert.Contains("5.10", appliedBasket);
-        Assert.Contains("45.90", appliedBasket);
+        Assert.Contains(51m.ToString("N2", CultureInfo.CurrentCulture), appliedBasket);
+        Assert.Contains(5.10m.ToString("N2", CultureInfo.CurrentCulture), appliedBasket);
+        Assert.Contains(45.90m.ToString("N2", CultureInfo.CurrentCulture), appliedBasket);
 
         var invalidContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
         {
@@ -142,7 +143,7 @@ public class IndexTest : IClassFixture<TestApplication>
         var invalidBasket = await invalidResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("not recognized", invalidBasket);
-        Assert.Contains("45.90", invalidBasket);
+        Assert.Contains(45.90m.ToString("N2", CultureInfo.CurrentCulture), invalidBasket);
 
         var removeContent = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
         {
@@ -151,7 +152,7 @@ public class IndexTest : IClassFixture<TestApplication>
         var removeResponse = await Client.PostAsync("/basket/removepromocode", removeContent, TestContext.Current.CancellationToken);
         var removedBasket = await removeResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
-        Assert.Contains("51.00", removedBasket);
+        Assert.Contains(51m.ToString("N2", CultureInfo.CurrentCulture), removedBasket);
         Assert.DoesNotContain("Applied promotion", removedBasket);
     }
 
@@ -179,6 +180,6 @@ public class IndexTest : IClassFixture<TestApplication>
 
         Assert.Contains("PROMO10", appliedBasket);
         Assert.Contains("minimum purchase of €50.00", appliedBasket);
-        Assert.Contains("0.00", appliedBasket);
+        Assert.Contains(0m.ToString("N2", CultureInfo.CurrentCulture), appliedBasket);
     }
 }
